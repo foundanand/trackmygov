@@ -84,7 +84,7 @@ export default function Home() {
               setSelectedLocation(null);
             }}
             onSubmit={() => {
-              refetchIssues();
+              void refetchIssues();
             }}
           />
         )}

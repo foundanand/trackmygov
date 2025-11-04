@@ -53,7 +53,7 @@ export const IssueModal: React.FC<IssueModalProps> = ({
           let city = "";
           let pincode = "";
 
-          address.address_components.forEach((component) => {
+          address?.address_components?.forEach((component) => {
             if (
               component.types.includes("administrative_area_level_1")
             ) {
@@ -71,14 +71,14 @@ export const IssueModal: React.FC<IssueModalProps> = ({
           });
 
           setLocationInfo({ state, city, pincode });
-          setFormData((prev) => ({ ...prev, area: address.formatted_address }));
+          setFormData((prev) => ({ ...prev, area: address?.formatted_address ?? "" }));
         }
       } catch (error) {
         console.error("Geocoding error:", error);
       }
     };
 
-    reverseGeocode();
+    void reverseGeocode();
   }, [isOpen, lat, lng]);
 
   const handleChange = (

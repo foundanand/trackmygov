@@ -49,7 +49,7 @@ export const Map: React.FC<MapProps> = ({
   });
 
   const [selectedIssue, setSelectedIssue] = useState<Issue | null>(null);
-  const [map, setMap] = React.useState<google.maps.Map | null>(null);
+  const [, setMap] = React.useState<google.maps.Map | null>(null);
 
   const onLoad = useCallback((map: google.maps.Map) => {
     setMap(map);
@@ -79,7 +79,7 @@ export const Map: React.FC<MapProps> = ({
       ENVIRONMENT: "#54A0FF",
       OTHER: "#95A5A6",
     };
-    return colors[category] || "#95A5A6";
+    return colors[category] ?? "#95A5A6";
   };
 
   if (!isLoaded) {

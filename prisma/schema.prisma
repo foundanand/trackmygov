@@ -94,3 +94,12 @@ model IssueUpvote {
     @@unique([issueId, userId])
     @@index([issueId])
 }
+
+model Post {
+    id        Int      @id @default(autoincrement())
+    name      String
+    createdAt DateTime @default(now())
+    updatedAt DateTime @updatedAt
+
+    @@index([name])
+}
