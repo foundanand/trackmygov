@@ -1,11 +1,12 @@
 "use client";
 
-import React, { useCallback, useState } from "react";
+import React, { useCallback, useState, useRef, useEffect } from "react";
 import {
   GoogleMap,
   useJsApiLoader,
   Marker,
   InfoWindow,
+  Autocomplete,
 } from "@react-google-maps/api";
 import type { Issue } from "@prisma/client";
 
@@ -49,7 +50,9 @@ export const Map: React.FC<MapProps> = ({
   });
 
   const [selectedIssue, setSelectedIssue] = useState<Issue | null>(null);
-  const [, setMap] = React.useState<google.maps.Map | null>(null);
+  const [map, setMap] = React.useState<google.maps.Map | null>(null);
+  const [autocomplete, setAutocomplete] = useState<google.maps.places.Autocomplete | null>(null);
+  const searchInputRef = useRef<HTMLInputElement>(null);
 
   const onLoad = useCallback((map: google.maps.Map) => {
     setMap(map);
@@ -62,6 +65,40 @@ export const Map: React.FC<MapProps> = ({
   const handleMapClick = (event: google.maps.MapMouseEvent) => {
     if (event.latLng) {
       onMapClick?.(event.latLng.lat(), event.latLng.lng());
+    }
+  };
+
+  const handleLocateMe = () => {
+    if (navigator.geolocation) {
+      navigator.geolocation.getCurrentPosition(
+        (position) => {
+          const pos = {
+            lat: position.coords.latitude,
+            lng: position.coords.longitude,
+          };
+          map?.panTo(pos);
+          map?.setZoom(13);
+          onMapClick?.(pos.lat, pos.lng);
+        },
+        () => {
+          alert("Error: Unable to retrieve your location.");
+        }
+      );
+    } else {
+      alert("Error: Your browser doesn't support geolocation.");
+    }
+  };
+
+  const onPlaceChanged = () => {
+    if (autocomplete !== null) {
+      const place = autocomplete.getPlace();
+      if (place.geometry?.location) {
+        const lat = place.geometry.location.lat();
+        const lng = place.geometry.location.lng();
+        map?.panTo({ lat, lng });
+        map?.setZoom(13);
+        onMapClick?.(lat, lng);
+      }
     }
   };
 
@@ -87,7 +124,54 @@ export const Map: React.FC<MapProps> = ({
   }
 
   return (
-    <GoogleMap
+    <div className="relative w-full h-full">
+      {/* Search Box */}
+      <div className="absolute top-4 left-1/2 transform -translate-x-1/2 z-10 w-full max-w-md px-4">
+        <Autocomplete
+          onLoad={setAutocomplete}
+          onPlaceChanged={onPlaceChanged}
+          options={{
+            componentRestrictions: { country: "in" },
+            fields: ["geometry", "name"],
+          }}
+        >
+          <input
+            ref={searchInputRef}
+            type="text"
+            placeholder="Search for a location..."
+            className="w-full px-4 py-3 rounded-lg shadow-lg border-0 focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
+          />
+        </Autocomplete>
+      </div>
+
+      {/* Locate Me Button */}
+      <button
+        onClick={handleLocateMe}
+        className="absolute top-4 right-4 z-10 bg-white p-3 rounded-lg shadow-lg hover:bg-gray-50 transition"
+        title="Locate Me"
+      >
+        <svg
+          xmlns="http://www.w3.org/2000/svg"
+          fill="none"
+          viewBox="0 0 24 24"
+          strokeWidth={2}
+          stroke="currentColor"
+          className="w-6 h-6 text-blue-600"
+        >
+          <path
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            d="M15 10.5a3 3 0 1 1-6 0 3 3 0 0 1 6 0Z"
+          />
+          <path
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            d="M19.5 10.5c0 7.142-7.5 11.25-7.5 11.25S4.5 17.642 4.5 10.5a7.5 7.5 0 1 1 15 0Z"
+          />
+        </svg>
+      </button>
+
+      <GoogleMap
       mapContainerStyle={containerStyle}
       center={defaultCenter}
       zoom={5}
@@ -111,14 +195,7 @@ export const Map: React.FC<MapProps> = ({
             lat: tempPin.lat,
             lng: tempPin.lng,
           }}
-          icon={{
-            path: google.maps.SymbolPath.CIRCLE,
-            scale: 8,
-            fillColor: "#FF0000",
-            fillOpacity: 0.8,
-            strokeColor: "#FFF",
-            strokeWeight: 2,
-          }}
+          animation={google.maps.Animation.DROP}
         />
       )}
       {issues.map((issue) => (
@@ -133,12 +210,12 @@ export const Map: React.FC<MapProps> = ({
             onMarkerClick?.(issue);
           }}
           icon={{
-            path: "M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.42 0-8-3.58-8-8s3.58-8 8-8 8 3.58 8 8-3.58 8-8 8z",
+            path: google.maps.SymbolPath.CIRCLE,
             fillColor: getCategoryColor(issue.category),
-            fillOpacity: 0.9,
-            scale: 1.5,
-            strokeColor: "#fff",
-            strokeWeight: 2,
+            fillOpacity: 0.95,
+            scale: 10,
+            strokeColor: "#FFFFFF",
+            strokeWeight: 3,
           }}
         />
       ))}
@@ -168,5 +245,6 @@ export const Map: React.FC<MapProps> = ({
         </InfoWindow>
       )}
     </GoogleMap>
+    </div>
   );
 };
