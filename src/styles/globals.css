@@ -4,3 +4,19 @@
   --font-sans: var(--font-geist-sans), ui-sans-serif, system-ui, sans-serif,
     "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", "Noto Color Emoji";
 }
+
+/* Fix Google Maps autocomplete dropdown */
+.pac-container {
+  width: 280px !important;
+  max-width: 280px !important;
+  z-index: 50 !important;
+}
+
+.pac-item {
+  padding: 8px 12px;
+  font-size: 14px;
+}
+
+.pac-item-query {
+  font-weight: 600;
+}

@@ -1,21 +1,81 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Map } from "@/app/_components/Map";
 import { IssueModal } from "@/app/_components/IssueModal";
+import { Analytics } from "@/app/_components/Analytics";
 import { api } from "@/trpc/react";
+
+const UPVOTED_ISSUES_KEY = "trackmygov_upvoted_issues";
 
 export default function Home() {
   const [showModal, setShowModal] = useState(false);
   const [selectedLocation, setSelectedLocation] = useState<{ lat: number; lng: number } | null>(null);
+  const [upvotedIssues, setUpvotedIssues] = useState<Set<string>>(new Set());
   
   const { data: issues = [], refetch: refetchIssues } = api.issue.listByLocation.useQuery({
     take: 100,
   });
+  
+  const upvoteMutation = api.issue.upvote.useMutation();
+
+  // Load upvoted issues from localStorage on mount
+  useEffect(() => {
+    try {
+      const saved = localStorage.getItem(UPVOTED_ISSUES_KEY);
+      if (saved) {
+        setUpvotedIssues(new Set(JSON.parse(saved) as string[]));
+      }
+    } catch (error) {
+      console.error('Failed to load upvoted issues:', error);
+    }
+  }, []);
+
+  // Save upvoted issues to localStorage whenever it changes
+  useEffect(() => {
+    try {
+      localStorage.setItem(UPVOTED_ISSUES_KEY, JSON.stringify(Array.from(upvotedIssues)));
+    } catch (error) {
+      console.error('Failed to save upvoted issues:', error);
+    }
+  }, [upvotedIssues]);
 
   const handleMapClick = (lat: number, lng: number) => {
     setSelectedLocation({ lat, lng });
     setShowModal(true);
+  };
+
+  const handleUpvote = async (issueId: string) => {
+    try {
+      // Generate a unique browser-based user ID
+      let browserId = localStorage.getItem('trackmygov_browser_id');
+      if (!browserId) {
+        browserId = `browser_${Math.random().toString(36).substring(2, 15)}`;
+        localStorage.setItem('trackmygov_browser_id', browserId);
+      }
+
+      await upvoteMutation.mutateAsync({
+        issueId,
+        userId: browserId,
+      });
+
+      // Toggle upvote status in local state
+      setUpvotedIssues(prev => {
+        const newSet = new Set(prev);
+        if (newSet.has(issueId)) {
+          newSet.delete(issueId);
+        } else {
+          newSet.add(issueId);
+        }
+        return newSet;
+      });
+
+      // Refetch issues to get updated counts
+      void refetchIssues();
+    } catch (error) {
+      console.error('Failed to upvote:', error);
+      alert('Failed to upvote. Please try again.');
+    }
   };
 
   return (
@@ -23,7 +83,12 @@ export default function Home() {
       {/* Header */}
       <header className="bg-white shadow">
         <div className="max-w-7xl mx-auto px-4 py-6 sm:px-6 lg:px-8">
-          <h1 className="text-3xl font-bold text-gray-900">Track My Gov</h1>
+          <div className="flex items-center gap-3">
+            <h1 className="text-3xl font-bold text-gray-900">Track My Gov</h1>
+            <span className="bg-orange-100 text-orange-700 px-2 py-1 rounded-full text-xs font-medium border border-orange-200">
+              BETA
+            </span>
+          </div>
           <p className="text-gray-600 mt-1">
             Report and track civic issues in your area with community verification
           </p>
@@ -40,6 +105,11 @@ export default function Home() {
                 issues={issues}
                 tempPin={selectedLocation}
                 onMapClick={handleMapClick}
+                onUpvote={handleUpvote}
+                upvotedIssues={upvotedIssues}
+                onLocateMe={() => {
+                  // Just pan and zoom, don't open modal
+                }}
                 onMarkerClick={(issue) => {
                   // Could navigate to issue detail page
                   console.log("Clicked issue:", issue);
@@ -89,6 +159,11 @@ export default function Home() {
           />
         )}
       </main>
+
+      {/* Analytics Section */}
+      <section className="max-w-7xl mx-auto px-4 py-12 sm:px-6 lg:px-8">
+        <Analytics issues={issues} />
+      </section>
     </div>
   );
 }
